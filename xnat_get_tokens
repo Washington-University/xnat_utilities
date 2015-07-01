@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+#
+# Copyright (c) 2015 Washington University
+# Author(s) Timothy B. Brown (tbbrown at wustl.edu)
+#
+# Command line tool for getting token username and password
+# Retrieves and then prints out a token username and password combination
+# The printed values are space separated.
+#
+# Example use in a bash script or on the command line
+#
+# source ${SCRIPTS_HOME}/epd-python_setup.sh
+# new_tokens=`./xnat_get_tokens --username=<username> --password=<password>`
+# token_username=${new_tokens% *}
+# token_password=${new_tokens#* }
+#
+
+import requests
+import argparse
+import json
+
+def main():
+
+	parser = argparse.ArgumentParser(prog="xnat_get_tokens",
+									 description="Get temporary login tokens for an XNAT installation")
+	parser.add_argument("-s", "--server", dest="server", default="db.humanconnectome.org", type=str)
+	parser.add_argument("-u", "--username", dest="username", required=True, type=str)
+	parser.add_argument("-p", "--password", dest="password", required=True, type=str)
+
+	args = parser.parse_args()
+
+	request_url = "https://" + args.server + "/data/services/tokens/issue"
+	response = requests.get(request_url, auth=(args.username, args.password))
+	token = json.loads(response.text)
+	token_username = token['alias']
+	token_password = token['secret']
+	print(token_username + " " + token_password)
+
+if __name__ == '__main__':
+	main()

@@ -1,0 +1,267 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2015 Washington University
+# Author(s) Timothy B. Brown (tbbrown at wustl.edu)
+#
+# Command line tool for displaying and alterning XNAT workflow information
+#
+# This utility is loosely based on, and owes some design acknowledgment to,
+# the xnat_workflow Python script found in Christian Haselgrove's XNAT
+# extras repository at: https://github.com/chaselgrove/xnat_extras.git 
+# along with a bash shell script called 'xnat_workflow' that has similar
+# functionality that was also supplied by Christian Haselgrove.
+
+import requests
+import argparse
+import json
+import datetime
+
+def xnat_workflow_info_show(args):
+	"""
+	Display on stdout information about a specified workflow.
+	This function is called in response to use of the 'show' sub-command.
+
+	The main argument parser and the sub-parser for the 'show' sub-command
+	enforce rules about what command line options are required.
+
+	Example invocation:
+
+	xnat_workflow_info --username=<your-username> --password=<your-password> --workflow-id=3912918 show
+
+	"""
+	request_url = "https://" + args.server + "/data/services/workflows/workflowid/" + args.workflow_id + "?format=json"
+	print("xnat_workflow_info show: request_url: " + request_url)
+	response = requests.get(request_url, auth=(args.username, args.password))
+	if (response.status_code != 200):
+		print("Cannot get response from request: " + request_url)
+		sys.exit(1)
+
+	json_response = json.loads(response.text)
+	json_items = json_response['items']
+	i = 0
+	for json_item in json_items:
+		i = i + 1
+		print i
+
+		# meta
+		json_meta = json_item['meta']
+		isHistory = json_meta['isHistory']
+		type = json_meta['xsi:type']
+		start_date = json_meta['start_date']
+
+		print "  isHistory: " + str(isHistory)
+		print "  type: " + type
+		print "  start_date: " + start_date
+	
+		# children
+		#json_children = json_item['children']
+		#print "  children"
+		#print json_children
+
+		# data_fields
+		json_data_fields = json_item['data_fields']
+		status = json_data_fields['status']
+		workflow_id = json_data_fields['wrk_workflowData_id']
+		data_type = json_data_fields['data_type']
+		launch_time = json_data_fields['launch_time']
+		ExternalID = json_data_fields['ExternalID']
+		pipeline_name = json_data_fields['pipeline_name']
+		ID = json_data_fields['ID']
+	
+		print "  status: " + status
+		print "  workflow_id: " + str(workflow_id)
+		print "  data_type: " + data_type
+		print "  launch_time: " + launch_time
+		print "  ExternalID: " + ExternalID
+		print "  pipeline_name: " + pipeline_name
+		print "  ID: " + ID
+
+		print "  All Data Fields:"
+		print "  " + str(json_data_fields)
+		
+def xnat_workflow_info_update(args):
+	"""
+	Update the information about the specified workflow.
+
+	The status is set to 'In Progress'
+	The current_step_id is set to the args.step_id
+	The step_description is set to args.step_description
+	The percentageComplete is set to args.percent_complete
+	The current_step_launch_time is set to the current time
+
+	This function is called in response to use of the 'update' sub-command.
+
+	The main argument parser and the sub-parser for the 'update' sub-command
+	enforce rules about what command line options are required.
+
+	Example invocation:
+
+	xnat_workflow_info --username=<your-username> --password=<your-password> --workflow-id=3912918 update \
+	  --step-id=1 --step-description='do this' --percent-complete=10
+
+	"""
+	request_url = "https://" + args.server + "/data/services/workflows/workflowid/" + args.workflow_id + "?format=json"
+	print("xnat_workflow_info update: request_url: " + request_url)
+	response = requests.get(request_url, auth=(args.username, args.password))
+
+	json_response = json.loads(response.text)
+	json_items = json_response['items']
+	json_item = json_items[0]
+	json_data_fields = json_item['data_fields']
+
+	put_url = "https://" + args.server + "/REST/workflows"
+	# workflow identifying information
+	put_url += "?wrk:workflowData/id=" + json_data_fields['ID']
+ 	put_url += "&wrk:workflowData/pipeline_name=" + json_data_fields['pipeline_name']
+	put_url += "&wrk:workflowData/launch_time=" + json_data_fields['launch_time']
+	put_url += "&wrk:workflowData/data_type=" + json_data_fields['data_type']
+	# workflow information to be updated
+ 	put_url += "&wrk:workflowData/status=" + "In Progress"
+ 	put_url += "&wrk:workflowData/current_step_id=" + args.step_id
+	put_url += "&wrk:workflowData/step_description=" + args.step_description
+	put_url += "&wrk:workflowData/percentageComplete=" + args.percent_complete
+	put_url += "&wrk:workflowData/current_step_launch_time=" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+	put_url = put_url.replace(" ", "%20");
+
+	print("xnat_workflow_info update: put_url: " + put_url)
+
+	response = requests.put(put_url, auth=(args.username, args.password))
+	if (response.status_code != 200):
+		print("Cannot update workflow")
+		print("response.status_code: " + str(response.status_code))
+
+def xnat_workflow_info_complete(args):
+	"""
+	Update the information about the specified workflow to reflect the
+	successful completion of the job.
+
+	The status is set to 'Complete'
+	The current_step_id is set to -1
+	The step_description is set to 'End'
+	The percentageComplete is set to 100.0
+	The current_step_launch_time is set to the current time
+
+	This function is called in response to use of the 'complete' sub-command.
+
+	The main argument parser and the sub-parser for the 'complete' sub-command
+	enforce rules about what command line options are required.
+
+	Example invocation:
+
+	xnat_workflow_info --username=<your-username> --password=<your-password> --workflow-id=3912918 complete
+
+	"""
+	request_url = "https://" + args.server + "/data/services/workflows/workflowid/" + args.workflow_id + "?format=json"
+	print("xnat_workflow_info complete: request_url: " + request_url)
+	response = requests.get(request_url, auth=(args.username, args.password))
+
+	json_response = json.loads(response.text)
+	json_items = json_response['items']
+	json_item = json_items[0]
+	json_data_fields = json_item['data_fields']
+
+	put_url = "https://" + args.server + "/REST/workflows"
+	# workflow identifying information
+	put_url += "?wrk:workflowData/id=" + json_data_fields['ID']
+ 	put_url += "&wrk:workflowData/pipeline_name=" + json_data_fields['pipeline_name']
+	put_url += "&wrk:workflowData/launch_time=" + json_data_fields['launch_time']
+	put_url += "&wrk:workflowData/data_type=" + json_data_fields['data_type']
+	# workflow information to be updated
+ 	put_url += "&wrk:workflowData/status=" + "Complete"
+ 	put_url += "&wrk:workflowData/current_step_id=" + "-1"
+	put_url += "&wrk:workflowData/step_description=" + "End"
+	put_url += "&wrk:workflowData/percentageComplete=" + "100.0"
+	put_url += "&wrk:workflowData/current_step_launch_time=" + datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+	put_url = put_url.replace(" ", "%20");
+
+	print("xnat_workflow_info complete: put_url: " + put_url)
+
+	response = requests.put(put_url, auth=(args.username, args.password))
+	if (response.status_code != 200):
+		print("Cannot update workflow")
+		print("response.status_code: " + str(response.status_code))
+
+def xnat_workflow_info_fail(args):
+	"""
+	Update the information about the specified workflow to reflect the
+	failure of the job.
+
+	The status is set to 'Failed'
+
+	This function is called in response to use of the 'fail' sub-command.
+
+	The main argument parser and the sub-parser for the 'fail' sub-command
+	enforce rules about what command line options are required.
+
+	Example invocation:
+
+	xnat_workflow_info --username=<your-username> --password=<your-password> --workflow-id=3912918 fail
+
+	"""
+	request_url = "https://" + args.server + "/data/services/workflows/workflowid/" + args.workflow_id + "?format=json"
+	print("xnat_workflow_info fail: request_url: " + request_url)
+	response = requests.get(request_url, auth=(args.username, args.password))
+
+	json_response = json.loads(response.text)
+	json_items = json_response['items']
+	json_item = json_items[0]
+	json_data_fields = json_item['data_fields']
+
+	put_url = "https://" + args.server + "/REST/workflows"
+	# workflow identifying information
+	put_url += "?wrk:workflowData/id=" + json_data_fields['ID']
+ 	put_url += "&wrk:workflowData/pipeline_name=" + json_data_fields['pipeline_name']
+	put_url += "&wrk:workflowData/launch_time=" + json_data_fields['launch_time']
+	put_url += "&wrk:workflowData/data_type=" + json_data_fields['data_type']
+	# workflow information to be updated
+ 	put_url += "&wrk:workflowData/status=" + "Failed"
+
+	put_url = put_url.replace(" ", "%20");
+
+	print("xnat_workflow_info fail: put_url: " + put_url)
+
+	response = requests.put(put_url, auth=(args.username, args.password))
+	if (response.status_code != 200):
+		print("Cannot update workflow")
+		print("response.status_code: " + str(response.status_code))
+
+def main():
+
+	parser = argparse.ArgumentParser(prog="xnat_workflow_info",
+									 description="Retrieve and update XNAT workflow information")
+	parser.add_argument("-s", "--server", dest="server", default="db.humanconnectome.org", type=str)
+	parser.add_argument("-u", "--username", dest="username", required=True, type=str)
+	parser.add_argument("-p", "--password", dest="password", required=True, type=str)
+	parser.add_argument("-w", "--workflow-id", dest="workflow_id", required=True, type=str)
+
+	subparsers = parser.add_subparsers(help='workflow information sub-commands')
+
+	# setup the show sub-command
+	parser_info = subparsers.add_parser('show', help='show workflow information')
+	parser_info.set_defaults(func=xnat_workflow_info_show)
+
+	# setup the update sub-command
+	parser_update = subparsers.add_parser('update', help='update workflow information')
+	parser_update.add_argument("-t", "--step-id", dest="step_id", required=True, type=str)
+	parser_update.add_argument("-d", "--step-description", dest="step_description", required=True, type=str)
+	parser_update.add_argument("-c", "--percent-complete", dest="percent_complete", required=True, type=str)
+	parser_update.set_defaults(func=xnat_workflow_info_update)
+
+	# setup the complete sub-command
+	parser_complete = subparsers.add_parser('complete', help='complete workflow')
+	parser_complete.set_defaults(func=xnat_workflow_info_complete)
+
+	# setup the fail sub-command
+	parser_fail = subparsers.add_parser('fail', help='fail workflow')
+	parser_fail.set_defaults(func=xnat_workflow_info_fail)
+	
+	# parse the arguments and call whatever function was selected
+	args = parser.parse_args()
+	args.func(args)
+
+if __name__ == '__main__':
+	main()
+	
+
