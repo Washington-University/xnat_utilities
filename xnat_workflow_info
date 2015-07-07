@@ -131,6 +131,8 @@ def xnat_workflow_info_update(args):
 		print("Cannot update workflow")
 		print("response.status_code: " + str(response.status_code))
 
+	xnat_workflow_info_show(args)
+
 def xnat_workflow_info_complete(args):
 	"""
 	Update the information about the specified workflow to reflect the
