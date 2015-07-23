@@ -185,6 +185,8 @@ def xnat_workflow_info_complete(args):
 		print("Cannot update workflow")
 		print("response.status_code: " + str(response.status_code))
 
+	xnat_workflow_info_show(args)
+
 def xnat_workflow_info_fail(args):
 	"""
 	Update the information about the specified workflow to reflect the
@@ -228,6 +230,8 @@ def xnat_workflow_info_fail(args):
 	if (response.status_code != 200):
 		print("Cannot update workflow")
 		print("response.status_code: " + str(response.status_code))
+
+	xnat_workflow_info_show(args)
 
 def main():
 
