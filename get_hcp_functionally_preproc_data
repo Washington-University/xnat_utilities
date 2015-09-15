@@ -1,0 +1,153 @@
+#!/bin/bash
+
+# home directory for XNAT pipeline engine installation
+XNAT_PIPELINE_HOME=/home/HCPpipeline/pipeline
+echo "XNAT_PIPELINE_HOME: ${XNAT_PIPELINE_HOME}"
+
+get_options()
+{
+	local arguments=($@)
+
+	# initialize global output variables
+	unset g_user
+	unset g_password
+	unset g_project
+	unset g_subject
+	unset g_session
+	unset g_scan
+	
+	# parse arguments
+	local num_args=${#arguments[@]}
+	local argument
+	local index=0
+
+	while [ ${index} -lt ${num_args} ]; do
+		argument=${arguments[index]}
+
+		case ${argument} in
+			--user=*)
+				g_user=${argument/*=/""}
+				index=$(( index + 1 ))
+				;;
+			--password=*)
+				g_password=${argument/*=/""}
+				index=$(( index + 1 ))
+				;;
+			--project=*)
+				g_project=${argument/*=/""}
+				index=$(( index + 1 ))
+				;;
+			--subject=*)
+				g_subject=${argument/*=/""}
+				index=$(( index + 1 ))
+				;;
+			--session=*)
+				g_session=${argument/*=/""}
+				index=$(( index + 1 ))
+				;;
+			--scan=*)
+				g_scan=${argument/*=/""}
+				index=$(( index + 1 ))
+				;;
+			*)
+				echo "ERROR: unrecognized option: ${argument}"
+				echo ""
+				exit 1
+				;;
+		esac
+	done
+
+	local error_count=0
+
+	# check parameters
+	if [ -z "${g_user}" ]; then
+		printf "Connectome DB Username: "
+		read g_user
+	fi
+	echo "g_user: ${g_user}"
+
+	if [ -z "${g_password}" ]; then
+		stty -echo 
+		printf "Connectome DB Password: "
+		read g_password
+		echo ""
+		stty echo
+	fi
+	echo "g_password: *******"
+
+	if [ -z "${g_project}" ]; then
+		printf "Connectome DB Project: "
+		read g_project
+	fi
+	echo "g_project: ${g_project}"
+
+	if [ -z "${g_subject}" ]; then
+		printf "Connectome DB Subject: "
+		read g_subject
+	fi
+	echo "g_subject: ${g_subject}"
+
+	if [ -z "${g_session}" ]; then
+		printf "Connectome DB Session: "
+		read g_session
+	fi
+	echo "g_session: ${g_session}"
+
+	if [ -z "${g_scan}" ]; then
+		printf "Scan: (e.g. rfMRI_REST1_LR, tfMRI_WM_RL, etc.): "
+		read g_scan
+	fi
+	echo "g_scan: ${g_scan}"
+
+}
+
+main()
+{
+	get_options $@
+	
+	# Command for running the XNAT Data Client
+	xnat_data_client_cmd="java -Xmx1024m -jar ${XNAT_PIPELINE_HOME}/lib/xnat-data-client-1.6.4-SNAPSHOT-jar-with-dependencies.jar"
+
+	# Command for running the XNAT REST Client
+	xnat_rest_client_cmd="java -Xmx2048m -jar ${XNAT_PIPELINE_HOME}/lib/xnat-rest-client-1.6.2-SNAPSHOT.jar"
+
+	# Set up to run Python
+	echo "Setting up to run Python"
+	source ${SCRIPTS_HOME}/epd-python_setup.sh
+
+	# Get Connectome DB session id
+	echo "Getting XNAT Session ID"
+	get_session_id_cmd="python ${XNAT_PIPELINE_HOME}/catalog/ToolsHCP/resources/scripts/sessionid.py --server=db.humanconnectome.org --username=${g_user} --password=${g_password} --project=${g_project} --subject=${g_subject} --session=${g_session}"
+	session_id=`${get_session_id_cmd}`
+	echo "XNAT session ID: ${session_id}"
+
+	# Get functionally preprocessed data
+	
+	rest_client_host="https://db.humanconnectome.org"
+
+ 	struct_preproc_uri="REST/projects/${g_project}"
+ 	struct_preproc_uri+="/subjects/${g_subject}"
+ 	struct_preproc_uri+="/experiments/${session_id}"
+ 	struct_preproc_uri+="/resources/${g_scan}_preproc"
+ 	struct_preproc_uri+="/files?format=zip"
+
+	retrieval_cmd="${xnat_rest_client_cmd} "
+	retrieval_cmd+="-host ${rest_client_host} "
+	retrieval_cmd+="-u ${g_user} "
+	retrieval_cmd+="-p ${g_password} "
+	retrieval_cmd+="-m GET "
+	retrieval_cmd+="-remote ${struct_preproc_uri}"
+
+	echo "retrieval_cmd: ${retrieval_cmd}"
+	${retrieval_cmd} > ${g_subject}_${g_scan}_Functional_preproc.zip
+
+	unzip ${g_subject}_${g_scan}_Functional_preproc.zip
+	mkdir -p ${g_subject}
+	rsync -auv ${g_session}/resources/${g_scan}_preproc/files/* ${g_subject}
+	rm -rf ${g_session}
+	rm ${g_subject}_${g_scan}_Functional_preproc.zip
+}
+
+# Invoke the main function to get things started
+main $@
+
