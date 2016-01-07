@@ -85,10 +85,3 @@ xnat_workflow_fail()
 		--workflow-id="${workflow_id}" \
 		fail
 }
-
-# Update specified XNAT Workflow to Failed status and exit this script
-die()
-{
-	xnat_workflow_fail ${1} ${2} ${3} ${4}
-	exit 1
-}
