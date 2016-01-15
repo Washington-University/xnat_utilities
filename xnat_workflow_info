@@ -3,7 +3,7 @@
 # Copyright (c) 2015 Washington University
 # Author(s) Timothy B. Brown (tbbrown at wustl.edu)
 #
-# Command line tool for displaying and alterning XNAT workflow information
+# Command line tool for displaying and altering XNAT workflow information
 #
 # This utility is loosely based on, and owes some design acknowledgment to,
 # the xnat_workflow Python script found in Christian Haselgrove's XNAT
