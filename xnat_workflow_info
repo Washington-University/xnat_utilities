@@ -109,7 +109,7 @@ def xnat_workflow_info_update(args):
 	json_item = json_items[0]
 	json_data_fields = json_item['data_fields']
 
-	put_url = "http://" + args.server + "/REST/workflows"
+	put_url = "https://" + args.server + "/REST/workflows"
 	# workflow identifying information
 	put_url += "?wrk:workflowData/id=" + json_data_fields['ID']
  	put_url += "&wrk:workflowData/pipeline_name=" + json_data_fields['pipeline_name']
@@ -163,7 +163,7 @@ def xnat_workflow_info_complete(args):
 	json_item = json_items[0]
 	json_data_fields = json_item['data_fields']
 
-	put_url = "http://" + args.server + "/REST/workflows"
+	put_url = "https://" + args.server + "/REST/workflows"
 	# workflow identifying information
 	put_url += "?wrk:workflowData/id=" + json_data_fields['ID']
  	put_url += "&wrk:workflowData/pipeline_name=" + json_data_fields['pipeline_name']
@@ -213,7 +213,7 @@ def xnat_workflow_info_fail(args):
 	json_item = json_items[0]
 	json_data_fields = json_item['data_fields']
 
-	put_url = "http://" + args.server + "/REST/workflows"
+	put_url = "https://" + args.server + "/REST/workflows"
 	# workflow identifying information
 	put_url += "?wrk:workflowData/id=" + json_data_fields['ID']
  	put_url += "&wrk:workflowData/pipeline_name=" + json_data_fields['pipeline_name']
