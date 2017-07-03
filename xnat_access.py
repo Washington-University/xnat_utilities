@@ -137,7 +137,12 @@ class XnatAccess(object):
     def get_project_id_list(self):
         """Get the list of valid project ids for the XNAT server."""
         request_url = self._server + 'data/projects'
-        project_id_list = self._get_json_response_list(request_url, 'id')
+
+        try:
+            project_id_list = self._get_json_response_list(request_url, 'id')
+        except KeyError:
+            project_id_list = self._get_json_response_list(request_url, 'ID')
+			
         return project_id_list
 
     def get_project(self):
